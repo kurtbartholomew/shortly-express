@@ -107,25 +107,32 @@ app.post('/signup',function(req,res){
       });
 
       newser.save().then(function(newUser){
-        console.log(user);
         Users.add(newUser);
         req.session.user = user;
         res.redirect('/');
-      })
+      });
     }
-  })
+  });
 });
 
 app.post('/login',function(req,res){
   var username = req.body.username;
   var password = req.body.password;
 
-
+  new User({username: username, password: password}).fetch().then(function(found){
+    if(found){
+      req.session.user = username;
+      res.redirect('/');
+    }
+    else{
+      res.redirect('/login');
+    }
+  });
   //check for valid username/password combo
+
     //set session
     //take to main page
   //otherwise send back to login
-  res.send(200);
 });
 
 
