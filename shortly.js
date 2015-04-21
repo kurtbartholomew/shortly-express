@@ -4,7 +4,10 @@ var partials = require('express-partials');
 var bodyParser = require('body-parser');
 var session = require('express-session');
 var bcrypt = require('bcrypt');
+var GitHubStrategy = require('passport-github').Strategy;
+var passport = require('passport');
 
+var githubAuth = require('./lib/githubSecrets');
 var db = require('./app/config');
 var Users = require('./app/collections/users');
 var User = require('./app/models/user');
@@ -13,6 +16,7 @@ var Link = require('./app/models/link');
 var Click = require('./app/models/click');
 
 var app = express();
+
 
 app.set('views', __dirname + '/views');
 app.set('view engine', 'ejs');
@@ -29,6 +33,43 @@ app.use(session({
   cookie: { secure: false }
 }));
 
+app.use(passport.initialize());
+app.use(passport.session());
+
+passport.serializeUser(function(user, done) {
+  done(null, user);
+});
+
+passport.deserializeUser(function(obj, done) {
+  done(null, obj);
+});
+
+passport.use(new GitHubStrategy({
+    clientID: githubAuth.CLIENT_ID,
+    clientSecret: githubAuth.CLIENT_SECRET,
+    callbackURL: "http://127.0.0.1:4568/auth/github/callback"
+  },
+  function(accessToken, refreshToken, profile, done) {
+    // asynchronous verification, for effect...
+    process.nextTick(function () {
+
+      // To keep the example simple, the user's GitHub profile is returned to
+      // represent the logged-in user.  In a typical application, you would want
+      // to associate the GitHub account with a user record in your database,
+      // and return that user instead.
+      return done(null, profile);
+    });
+  }
+));
+
+app.get('/auth/github', passport.authenticate('github'), function(req,res){
+
+});
+
+app.get('/auth/github/callback', passport.authenticate('github', { failureRedirect: '/login' }),
+function(req, res) {
+  res.redirect('/');
+});
 
 app.get('/', util.checkSession, function(req, res) {
   res.render('index');
@@ -39,13 +80,12 @@ app.get('/create',util.checkSession, function(req, res) {
 });
 
 app.get('/links', util.checkSession, function(req, res) {
+  // user is logged in from github already, this won't work
   Users.query('where', 'username', '=', req.session.user).fetchOne().then(function(instance){
     Links.reset().query('where', 'user_id', '=', instance.attributes.id ).fetch().then(function(links) {
       res.send(200, links.models);
     });
-
   });
-
 });
 
 
@@ -74,6 +114,8 @@ app.post('/links', util.checkSession, function(req, res) {
           console.log('Error reading URL heading: ', err);
           return res.send(404);
         }
+
+        // need to change this since we will be using github's login
         Users.query('where', 'username', '=', req.session.user).fetchOne().then(function(instance){
 
           var link = new Link({
@@ -101,67 +143,69 @@ app.post('/links', util.checkSession, function(req, res) {
 /************************************************************/
 
 app.post('/signup',function(req,res){
-  var user = req.body.username;
-  var pass = req.body.password;
+  res.redirect('/auth/github');
+  // var user = req.body.username;
+  // var pass = req.body.password;
 
-  new User({ username: user }).fetch().then(function(found){
-    if (found) {
-      res.send(302, "Username already exists");
-    } else {
+  // new User({ username: user }).fetch().then(function(found){
+  //   if (found) {
+  //     res.send(302, "Username already exists");
+  //   } else {
 
-      bcrypt.genSalt(10, function(err, salt){
-        bcrypt.hash(pass, salt, function(err, hash){
+  //     bcrypt.genSalt(10, function(err, salt){
+  //       bcrypt.hash(pass, salt, function(err, hash){
 
-          //get it?
-          var newser = new User({
-            username: user,
-            password: hash,
-            salt: salt
-          });
+  //         //get it?
+  //         var newser = new User({
+  //           username: user,
+  //           password: hash,
+  //           salt: salt
+  //         });
 
-          newser.save().then(function(newUser){
-            Users.add(newUser);
-            req.session.user = user;
-            res.redirect('/');
-          });
-        });
-      });
+  //         newser.save().then(function(newUser){
+  //           Users.add(newUser);
+  //           req.session.user = user;
+  //           res.redirect('/');
+  //         });
+  //       });
+  //     });
 
 
-    }
-  });
+  //   }
+  // });
 });
 
 app.post('/login',function(req,res){
-  var username = req.body.username;
-  var password = req.body.password;
+  res.redirect('/auth/github');
+  // var username = req.body.username;
+  // var password = req.body.password;
 
-  Users.query('where', 'username', '=', username).fetchOne().then(function(instance){
+  // Users.query('where', 'username', '=', username).fetchOne().then(function(instance){
 
-    if(instance){
+  //   if(instance){
 
-      var userAttr = instance.attributes;
+  //     var userAttr = instance.attributes;
 
-      bcrypt.hash(password, userAttr.salt, function(err, hashToCompare){
+  //     bcrypt.hash(password, userAttr.salt, function(err, hashToCompare){
 
-        if(hashToCompare === userAttr.password){
-          req.session.regenerate(function(){
-            req.session.user = username;
-            req.session.save();
-            return res.redirect('/');
-          });
-        }
-        else{
-          res.redirect('login');
-        }
-      });
+  //       if(hashToCompare === userAttr.password){
+  //         req.session.regenerate(function(){
+  //           req.session.user = username;
+  //           req.session.save();
+  //           return res.redirect('/');
+  //         });
+  //       }
+  //       else{
+  //         res.redirect('login');
+  //       }
+  //     });
 
-    }
-    else{
-      res.redirect('/login');
-    }
+  //   }
+  //   else{
+  //     res.redirect('/login');
+  //   }
 
-  });
+  // });
 
 });
 
