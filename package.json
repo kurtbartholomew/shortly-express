@@ -10,8 +10,7 @@
     "start": "./node_modules/.bin/nodemon --ignore node_modules shortly.js",
     "test": "node shortly.js& ./node_modules/.bin/mocha --timeout 5000 test/ServerSpec.js; pkill -n node;"
   },
-  "dependencies": {
-    "bcrypt-nodejs": "0.0.3",
+  "dependencies": {    
     "bluebird": "1.0.8",
     "body-parser": "^1.5.2",
     "bookshelf": "~0.6.4",

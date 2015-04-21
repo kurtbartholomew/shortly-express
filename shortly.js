@@ -3,6 +3,7 @@ var util = require('./lib/utility');
 var partials = require('express-partials');
 var bodyParser = require('body-parser');
 var session = require('express-session');
+var bcrypt = require('bcrypt');
 
 var db = require('./app/config');
 var Users = require('./app/collections/users');
@@ -107,17 +108,26 @@ app.post('/signup',function(req,res){
     if (found) {
       res.send(302, "Username already exists");
     } else {
-      //get it?
-      var newser = new User({
-        username: user,
-        password: pass
+
+      bcrypt.genSalt(10, function(err, salt){
+        bcrypt.hash(pass, salt, function(err, hash){
+
+          //get it?
+          var newser = new User({
+            username: user,
+            password: hash,
+            salt: salt
+          });
+
+          newser.save().then(function(newUser){
+            Users.add(newUser);
+            req.session.user = user;
+            res.redirect('/');
+          });
+        });
       });
 
-      newser.save().then(function(newUser){
-        Users.add(newUser);
-        req.session.user = user;
-        res.redirect('/');
-      });
+
     }
   });
 });
@@ -126,21 +136,33 @@ app.post('/login',function(req,res){
   var username = req.body.username;
   var password = req.body.password;
 
-  new User({username: username, password: password}).fetch().then(function(found){
-    if(found){
-      req.session.regenerate(function(){
-        req.session.user = username;
-        req.session.save();
-        return res.redirect('/');
+  Users.query('where', 'username', '=', username).fetchOne().then(function(instance){
 
+    if(instance){
+
+      var userAttr = instance.attributes;
+
+      bcrypt.hash(password, userAttr.salt, function(err, hashToCompare){
+
+        if(hashToCompare === userAttr.password){
+          req.session.regenerate(function(){
+            req.session.user = username;
+            req.session.save();
+            return res.redirect('/');
+          });
+        }
+        else{
+          res.redirect('login');
+        }
       });
-
 
     }
     else{
       res.redirect('/login');
     }
+
   });
+
 });
 
 
