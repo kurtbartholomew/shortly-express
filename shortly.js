@@ -101,12 +101,13 @@ app.post('/signup',function(req,res){
       res.send(302, "Username already exists");
     } else {
 
-      var user = new User({
+      var newser = new User({
         username: user,
         password: pass
       });
 
-      user.save().then(function(newUser){
+      newser.save().then(function(newUser){
+        console.log(user);
         Users.add(newUser);
         req.session.user = user;
         res.redirect('/');
