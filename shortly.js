@@ -3,7 +3,6 @@ var util = require('./lib/utility');
 var partials = require('express-partials');
 var bodyParser = require('body-parser');
 var session = require('express-session');
-var cookieParser = require('cookie-parser');
 
 var db = require('./app/config');
 var Users = require('./app/collections/users');
@@ -22,7 +21,6 @@ app.use(bodyParser.json());
 // Parse forms (signup/login)
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(__dirname + '/public'));
-app.use(cookieParser());
 app.use(session({
   secret: 'nyan cat',
   resave: false,
@@ -40,9 +38,13 @@ app.get('/create',util.checkSession, function(req, res) {
 });
 
 app.get('/links', util.checkSession, function(req, res) {
-  Links.reset().fetch().then(function(links) {
-    res.send(200, links.models);
+  Users.query('where', 'username', '=', req.session.user).fetchOne().then(function(instance){
+    Links.reset().query('where', 'user_id', '=', instance.attributes.id ).fetch().then(function(links) {
+      res.send(200, links.models);
+    });
+
   });
+
 });
 
 
@@ -71,17 +73,22 @@ app.post('/links', util.checkSession, function(req, res) {
           console.log('Error reading URL heading: ', err);
           return res.send(404);
         }
+        Users.query('where', 'username', '=', req.session.user).fetchOne().then(function(instance){
 
-        var link = new Link({
-          url: uri,
-          title: title,
-          base_url: req.headers.origin
+          var link = new Link({
+            user_id: instance.attributes.id,
+            url: uri,
+            title: title,
+            base_url: req.headers.origin
+          });
+
+          link.save().then(function(newLink) {
+            Links.add(newLink);
+            res.send(200, newLink);
+          });
+
         });
 
-        link.save().then(function(newLink) {
-          Links.add(newLink);
-          res.send(200, newLink);
-        });
       });
     }
   });
@@ -100,7 +107,6 @@ app.post('/signup',function(req,res){
     if (found) {
       res.send(302, "Username already exists");
     } else {
-
       //get it?
       var newser = new User({
         username: user,
