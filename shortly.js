@@ -31,15 +31,15 @@ app.use(session({
 }));
 
 
-app.get('/', checkSession, function(req, res) {
+app.get('/', util.checkSession, function(req, res) {
   res.render('index');
 });
 
-app.get('/create',checkSession, function(req, res) {
+app.get('/create',util.checkSession, function(req, res) {
   res.render('index');
 });
 
-app.get('/links', checkSession, function(req, res) {
+app.get('/links', util.checkSession, function(req, res) {
   Links.reset().fetch().then(function(links) {
     res.send(200, links.models);
   });
@@ -54,7 +54,7 @@ app.get('/signup', function(req,res){
   res.render('signup');
 });
 
-app.post('/links', checkSession, function(req, res) {
+app.post('/links', util.checkSession, function(req, res) {
   var uri = req.body.url;
 
   if (!util.isValidUrl(uri)) {
@@ -101,6 +101,7 @@ app.post('/signup',function(req,res){
       res.send(302, "Username already exists");
     } else {
 
+      //get it?
       var newser = new User({
         username: user,
         password: pass
@@ -121,29 +122,27 @@ app.post('/login',function(req,res){
 
   new User({username: username, password: password}).fetch().then(function(found){
     if(found){
-      req.session.user = username;
-      res.redirect('/');
+      console.log('user found')
+      req.session.regenerate(function(){
+        req.session.user = username;
+        res.redirect('/');
+
+      });
     }
     else{
+      console.log('user !found')
       res.redirect('/login');
     }
   });
-  //check for valid username/password combo
-
-    //set session
-    //take to main page
-  //otherwise send back to login
 });
 
 
-function checkSession(req, res, next){
-  if(req.session.user){
-    next();
-  }
-  else{
+app.get('/logout', function(req,res){
+
+  req.session.destroy(function(){
     res.redirect('/login');
-  }
-}
+  });
+});
 
 /************************************************************/
 // Handle the wildcard route last - if all other routes fail
