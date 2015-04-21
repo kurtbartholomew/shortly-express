@@ -2,7 +2,8 @@ var express = require('express');
 var util = require('./lib/utility');
 var partials = require('express-partials');
 var bodyParser = require('body-parser');
-
+var session = require('express-session');
+var cookieParser = require('cookie-parser');
 
 var db = require('./app/config');
 var Users = require('./app/collections/users');
@@ -21,23 +22,39 @@ app.use(bodyParser.json());
 // Parse forms (signup/login)
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(__dirname + '/public'));
+app.use(cookieParser());
+app.use(session({
+  secret: 'nyan cat',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { secure: true }
+}));
 
 
-app.get('/', function(req, res) {
+app.get('/', checkSession, function(req, res) {
   res.render('index');
 });
 
-app.get('/create', function(req, res) {
+app.get('/create',checkSession, function(req, res) {
   res.render('index');
 });
 
-app.get('/links', function(req, res) {
+app.get('/links', checkSession, function(req, res) {
   Links.reset().fetch().then(function(links) {
     res.send(200, links.models);
   });
 });
 
-app.post('/links', function(req, res) {
+
+app.get('/login', function(req,res){
+  res.render('login');
+});
+
+app.get('/signup', function(req,res){
+  res.render('signup');
+});
+
+app.post('/links', checkSession, function(req, res) {
   var uri = req.body.url;
 
   if (!util.isValidUrl(uri)) {
@@ -70,14 +87,55 @@ app.post('/links', function(req, res) {
   });
 });
 
+
 /************************************************************/
 // Write your authentication routes here
 /************************************************************/
 
+app.post('/signup',function(req,res){
+  var user = req.body.username;
+  var pass = req.body.password;
+
+  new User({ username: user }).fetch().then(function(found){
+    if (found) {
+      res.send(302, "Username already exists");
+    } else {
+
+      var user = new User({
+        username: user,
+        password: pass
+      });
+
+      user.save().then(function(newUser){
+        Users.add(newUser);
+        req.session.user = user;
+        res.redirect('/');
+      })
+    }
+  })
+});
+
 app.post('/login',function(req,res){
+  var username = req.body.username;
+  var password = req.body.password;
+
+
+  //check for valid username/password combo
+    //set session
+    //take to main page
+  //otherwise send back to login
   res.send(200);
 });
 
+
+function checkSession(req, res, next){
+  if(req.session.user){
+    next();
+  }
+  else{
+    res.redirect('/login');
+  }
+}
 
 /************************************************************/
 // Handle the wildcard route last - if all other routes fail
