@@ -27,7 +27,7 @@ app.use(session({
   secret: 'nyan cat',
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: true }
+  cookie: { secure: false }
 }));
 
 
@@ -122,15 +122,16 @@ app.post('/login',function(req,res){
 
   new User({username: username, password: password}).fetch().then(function(found){
     if(found){
-      console.log('user found')
       req.session.regenerate(function(){
         req.session.user = username;
-        res.redirect('/');
+        req.session.save();
+        return res.redirect('/');
 
       });
+
+
     }
     else{
-      console.log('user !found')
       res.redirect('/login');
     }
   });
