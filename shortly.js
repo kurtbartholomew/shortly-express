@@ -37,6 +37,7 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 passport.serializeUser(function(user, done) {
+  // console.log(user);
   done(null, user);
 });
 
@@ -50,6 +51,7 @@ passport.use(new GitHubStrategy({
     callbackURL: "http://127.0.0.1:4568/auth/github/callback"
   },
   function(accessToken, refreshToken, profile, done) {
+    //console.log(profile);
     // asynchronous verification, for effect...
     process.nextTick(function () {
 
@@ -72,6 +74,7 @@ function(req, res) {
 });
 
 app.get('/', util.checkSession, function(req, res) {
+  //console.log(req.session.passport, '--------------------------');
   res.render('index');
 });
 
@@ -81,11 +84,11 @@ app.get('/create',util.checkSession, function(req, res) {
 
 app.get('/links', util.checkSession, function(req, res) {
   // user is logged in from github already, this won't work
-  Users.query('where', 'username', '=', req.session.user).fetchOne().then(function(instance){
-    Links.reset().query('where', 'user_id', '=', instance.attributes.id ).fetch().then(function(links) {
-      res.send(200, links.models);
-    });
+  var passportID = req.session.passport.user.id;
+  Links.reset().query('where', 'user_id', '=', passportID ).fetch().then(function(links) {
+    res.send(200, links.models);
   });
+
 });
 
 
@@ -104,7 +107,6 @@ app.post('/links', util.checkSession, function(req, res) {
     console.log('Not a valid url: ', uri);
     return res.send(404);
   }
-
   new Link({ url: uri }).fetch().then(function(found) {
     if (found) {
       res.send(200, found.attributes);
@@ -114,24 +116,20 @@ app.post('/links', util.checkSession, function(req, res) {
           console.log('Error reading URL heading: ', err);
           return res.send(404);
         }
-
+        var passportID = req.session.passport.user.id;
         // need to change this since we will be using github's login
-        Users.query('where', 'username', '=', req.session.user).fetchOne().then(function(instance){
 
-          var link = new Link({
-            user_id: instance.attributes.id,
-            url: uri,
-            title: title,
-            base_url: req.headers.origin
-          });
-
-          link.save().then(function(newLink) {
-            Links.add(newLink);
-            res.send(200, newLink);
-          });
-
+        var link = new Link({
+          user_id: passportID,
+          url: uri,
+          title: title,
+          base_url: req.headers.origin
         });
-
+        // console.log(link);
+        link.save().then(function(newLink) {
+          Links.add(newLink);
+          res.send(200, newLink);
+        });
       });
     }
   });
